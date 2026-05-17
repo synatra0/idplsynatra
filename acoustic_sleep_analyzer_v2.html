@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Sleep Acoustics</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#07090e}
+.app{background:#07090e;color:#d0d8f0;font-family:'Space Grotesk',sans-serif;display:grid;grid-template-rows:52px 1fr 48px;height:100vh;min-height:600px}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-bottom:1px solid rgba(255,255,255,0.06);background:#07090e}
+.brand-name{font-size:13px;font-weight:600;color:#e8e0ff;letter-spacing:0.04em}
+.brand-sub{font-family:'JetBrains Mono',monospace;font-size:9px;color:#383a60;letter-spacing:0.1em;margin-top:1px}
+.pill{display:flex;align-items:center;gap:7px;padding:5px 13px;border-radius:20px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.04);font-family:'JetBrains Mono',monospace;font-size:9px;color:#484a70;letter-spacing:0.08em;transition:all .4s}
+.pill.live{color:#4ade80;border-color:rgba(74,222,128,0.35);background:rgba(74,222,128,0.08)}
+.pdot{width:5px;height:5px;border-radius:50%;background:#383a60;transition:all .4s}
+.pill.live .pdot{background:#4ade80;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.body{display:grid;grid-template-columns:1fr 320px;min-height:0;overflow:hidden}
+.left{display:grid;grid-template-rows:80px 60px auto 1fr;border-right:1px solid rgba(255,255,255,0.06);min-height:0;overflow:hidden}
+.lbl{font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:0.16em;color:#30325a;text-transform:uppercase;margin-bottom:7px}
+.wave-sec{padding:12px 20px 10px;border-bottom:1px solid rgba(255,255,255,0.06)}
+.wave-wrap{position:relative}
+#waveCanvas{width:100%;height:44px;display:block;border-radius:5px;background:#0c0e1c}
+.wave-idle{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:9px;color:#20224a;letter-spacing:0.12em;text-transform:uppercase;transition:opacity .5s}
+.db-sec{padding:6px 20px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:16px}
+.db-num{font-family:'JetBrains Mono',monospace;font-size:34px;font-weight:300;line-height:1;color:#4ade80;transition:color .4s;min-width:70px}
+.db-unit{font-family:'JetBrains Mono',monospace;font-size:8px;color:#30325a;letter-spacing:.08em;margin-top:3px}
+.bar-col{flex:1;display:flex;flex-direction:column;gap:5px}
+.bar-track{height:4px;border-radius:2px;background:#0d0f1e;overflow:hidden}
+.bar-fill{height:100%;border-radius:2px;width:0%;transition:width .12s,background .4s}
+.bar-ticks{display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:7px;color:#20224a}
+.peaks-sec{padding:10px 20px;border-bottom:1px solid rgba(255,255,255,0.06);display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.peak-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:10px 14px;display:flex;flex-direction:column;gap:6px}
+.peak-card.best{border-color:rgba(52,211,153,0.2);background:rgba(52,211,153,0.04)}
+.peak-card.worst{border-color:rgba(248,113,113,0.2);background:rgba(248,113,113,0.04)}
+.peak-header{display:flex;align-items:center;justify-content:space-between}
+.peak-left{display:flex;align-items:center;gap:7px}
+.peak-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.peak-title{font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:#484a70}
+.peak-score{font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:300;line-height:1}
+.peak-stats{display:flex;gap:12px;flex-wrap:wrap}
+.pstat{display:flex;flex-direction:column;gap:1px}
+.pstat-lbl{font-family:'JetBrains Mono',monospace;font-size:7px;color:#30325a;letter-spacing:.09em;text-transform:uppercase}
+.pstat-val{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500}
+.no-data-txt{font-family:'JetBrains Mono',monospace;font-size:9px;color:#25274a;letter-spacing:.08em}
+.freq-sec{padding:10px 20px 12px;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+#freqCanvas{width:100%;flex:1;display:block;min-height:0}
+.freq-tags{display:flex;gap:14px;margin-top:7px;flex-wrap:wrap;flex-shrink:0}
+.ftag{display:flex;align-items:center;gap:5px;font-family:'JetBrains Mono',monospace;font-size:8px;color:#40426a;letter-spacing:.05em}
+.fdot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.right{display:grid;grid-template-rows:auto auto 1fr auto;min-height:0;overflow:hidden}
+.score-sec{padding:16px 20px 12px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;flex-direction:column;align-items:center}
+.ring-wrap{position:relative;width:106px;height:106px}
+#scoreRing{width:100%;height:100%}
+.ring-ctr{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring-num{font-family:'JetBrains Mono',monospace;font-size:32px;font-weight:300;line-height:1;transition:color .5s;color:#30325a}
+.ring-of{font-family:'JetBrains Mono',monospace;font-size:8px;color:#30325a;margin-top:2px}
+.verdict{margin-top:7px;font-size:11px;font-weight:600;color:#30325a;transition:color .5s;letter-spacing:.03em;text-align:center}
+.mini-stats{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.06)}
+.mini-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:7px 9px}
+.mini-lbl{font-family:'JetBrains Mono',monospace;font-size:7px;color:#383a60;letter-spacing:.1em;text-transform:uppercase;margin-bottom:2px}
+.mini-val{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:400;transition:color .4s;color:#30325a}
+.metrics-sec{padding:8px 12px;display:flex;flex-direction:column;gap:6px;overflow-y:auto;min-height:0}
+.met-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:9px;padding:8px 11px;transition:border-color .3s}
+.met-card:hover{border-color:rgba(255,255,255,0.14)}
+.met-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+.met-name{font-family:'JetBrains Mono',monospace;font-size:7px;color:#484a70;letter-spacing:.12em;text-transform:uppercase}
+.met-val{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:500;transition:color .4s;color:#30325a}
+.met-bar{height:3px;border-radius:2px;background:#0d0f1e;overflow:hidden}
+.met-fill{height:100%;border-radius:2px;transition:width .5s,background .4s}
+.rec-sec{padding:8px 12px 12px;border-top:1px solid rgba(255,255,255,0.06);flex-shrink:0}
+.rec-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:9px;padding:9px 11px;margin-top:5px}
+.rec-text{font-size:10px;color:#585a80;line-height:1.75}
+.footer{padding:0 24px;border-top:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:12px;background:#07090e}
+.btn{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.1em;padding:7px 18px;border-radius:7px;cursor:pointer;transition:all .2s;border:1px solid rgba(160,180,255,0.22);background:rgba(160,180,255,0.06);color:#7880d8}
+.btn:hover{background:rgba(160,180,255,0.12);color:#c8c0ff}
+.btn.stop{border-color:rgba(248,113,113,0.35);background:rgba(248,113,113,0.07);color:#f87171}
+.btn.stop:hover{background:rgba(248,113,113,0.14)}
+.btn-reset{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.1em;padding:7px 14px;border-radius:7px;cursor:pointer;transition:all .2s;border:1px solid rgba(255,255,255,0.08);background:transparent;color:#383a60}
+.btn-reset:hover{color:#8080a0;border-color:rgba(255,255,255,0.14)}
+.hint{font-family:'JetBrains Mono',monospace;font-size:9px;color:#222440;letter-spacing:.06em;margin-left:auto}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div>
+      <div class="brand-name">Sleep Acoustics</div>
+      <div class="brand-sub">room environment analyzer</div>
+    </div>
+    <div class="pill" id="pill"><span class="pdot"></span><span id="ptxt">idle</span></div>
+  </div>
+
+  <div class="body">
+    <div class="left">
+      <div class="wave-sec">
+        <div class="lbl">Waveform</div>
+        <div class="wave-wrap">
+          <canvas id="waveCanvas" width="640" height="44"></canvas>
+          <div class="wave-idle" id="waveIdle">awaiting microphone</div>
+        </div>
+      </div>
+
+      <div class="db-sec">
+        <div>
+          <div class="db-num" id="dbNum">—</div>
+          <div class="db-unit">dB SPL</div>
+        </div>
+        <div class="bar-col">
+          <div class="bar-track"><div class="bar-fill" id="dbBar"></div></div>
+          <div class="bar-ticks"><span>0</span><span>whisper 30</span><span>ideal 40</span><span>loud 70</span></div>
+        </div>
+      </div>
+
+      <div class="peaks-sec">
+        <div class="peak-card best">
+          <div class="peak-header">
+            <div class="peak-left"><span class="peak-dot" style="background:#34d399"></span><span class="peak-title">Best score</span></div>
+            <div class="peak-score" id="bestScore" style="color:#30325a">—</div>
+          </div>
+          <div class="peak-stats" id="bestMeta"><span class="no-data-txt">start monitoring</span></div>
+        </div>
+        <div class="peak-card worst">
+          <div class="peak-header">
+            <div class="peak-left"><span class="peak-dot" style="background:#f87171"></span><span class="peak-title">Worst score</span></div>
+            <div class="peak-score" id="worstScore" style="color:#30325a">—</div>
+          </div>
+          <div class="peak-stats" id="worstMeta"><span class="no-data-txt">start monitoring</span></div>
+        </div>
+      </div>
+
+      <div class="freq-sec">
+        <div class="lbl">Frequency breakdown</div>
+        <canvas id="freqCanvas" width="640" height="100"></canvas>
+        <div class="freq-tags">
+          <div class="ftag"><span class="fdot" style="background:#818cf8"></span>Sub-bass &lt;60Hz</div>
+          <div class="ftag"><span class="fdot" style="background:#34d399"></span>Bass 60-250Hz</div>
+          <div class="ftag"><span class="fdot" style="background:#fbbf24"></span>Midrange 250Hz-4kHz</div>
+          <div class="ftag"><span class="fdot" style="background:#f87171"></span>Treble &gt;4kHz</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="right">
+      <div class="score-sec">
+        <div class="lbl" style="align-self:flex-start;margin-bottom:10px">Sleep score</div>
+        <div class="ring-wrap">
+          <svg id="scoreRing" viewBox="0 0 110 110">
+            <circle cx="55" cy="55" r="46" fill="none" stroke="#0d0f1e" stroke-width="8"/>
+            <circle id="sArc" cx="55" cy="55" r="46" fill="none" stroke="#30325a" stroke-width="8"
+              stroke-linecap="round" stroke-dasharray="289.03" stroke-dashoffset="289.03"
+              transform="rotate(-90 55 55)" style="transition:stroke-dashoffset .8s,stroke .5s"/>
+          </svg>
+          <div class="ring-ctr">
+            <div class="ring-num" id="scoreNum">—</div>
+            <div class="ring-of">/ 100</div>
+          </div>
+        </div>
+        <div class="verdict" id="verdict">start monitoring</div>
+      </div>
+
+      <div class="mini-stats">
+        <div class="mini-card"><div class="mini-lbl">Avg noise</div><div class="mini-val" id="mAvg">—</div></div>
+        <div class="mini-card"><div class="mini-lbl">Peak dB</div><div class="mini-val" id="mPeak">—</div></div>
+        <div class="mini-card"><div class="mini-lbl">Dominant</div><div class="mini-val" id="mDom" style="font-size:10px;margin-top:2px">—</div></div>
+        <div class="mini-card"><div class="mini-lbl">Duration</div><div class="mini-val" id="mDur" style="font-size:12px;margin-top:2px">0:00</div></div>
+      </div>
+
+      <div class="metrics-sec">
+        <div class="met-card"><div class="met-top"><span class="met-name">Noise floor</span><span class="met-val" id="v1">—</span></div><div class="met-bar"><div class="met-fill" id="b1" style="width:0%"></div></div></div>
+        <div class="met-card"><div class="met-top"><span class="met-name">Stability</span><span class="met-val" id="v2">—</span></div><div class="met-bar"><div class="met-fill" id="b2" style="width:0%"></div></div></div>
+        <div class="met-card"><div class="met-top"><span class="met-name">High-freq energy</span><span class="met-val" id="v3">—</span></div><div class="met-bar"><div class="met-fill" id="b3" style="width:0%"></div></div></div>
+        <div class="met-card"><div class="met-top"><span class="met-name">Spike events</span><span class="met-val" id="v4">—</span></div><div class="met-bar"><div class="met-fill" id="b4" style="width:0%"></div></div></div>
+      </div>
+
+      <div class="rec-sec">
+        <div class="lbl">Recommendation</div>
+        <div class="rec-card"><div class="rec-text" id="recText">Start monitoring to receive a real-time sleep environment assessment.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <button class="btn" id="mainBtn" onclick="toggleMic()">&#9654; start monitoring</button>
+    <button class="btn-reset" onclick="resetPeaks()">reset peaks</button>
+    <span class="hint" id="hintTxt">microphone access required</span>
+  </div>
+</div>
+
+<script>
+let actx,analyser,src,stream,raf;
+let on=false,dbHist=[],spikes=0,frames=0,peakDb=0,sesStart=0;
+const CIRC=289.03;
+const $=id=>document.getElementById(id);
+let best={score:-1},worst={score:101};
+let currentScore=0,scoreStartTime=0;
+
+function resetPeaks(){
+  best={score:-1};worst={score:101};
+  $('bestScore').textContent='—';$('bestScore').style.color='#30325a';
+  $('bestMeta').innerHTML='<span class="no-data-txt">start monitoring</span>';
+  $('worstScore').textContent='—';$('worstScore').style.color='#30325a';
+  $('worstMeta').innerHTML='<span class="no-data-txt">start monitoring</span>';
+}
+function fmtTime(ts){const d=new Date(ts);return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0')+':'+d.getSeconds().toString().padStart(2,'0')}
+function fmtDur(ms){const s=Math.floor(ms/1000);return s<60?s+'s':Math.floor(s/60)+'m '+(s%60)+'s'}
+function sigCol(p){return p>=70?'#34d399':p>=45?'#fbbf24':'#f87171'}
+
+async function toggleMic(){on?stopMic():await startMic()}
+async function startMic(){
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    actx=new(window.AudioContext||window.webkitAudioContext)();
+    analyser=actx.createAnalyser();analyser.fftSize=2048;analyser.smoothingTimeConstant=0.84;
+    src=actx.createMediaStreamSource(stream);src.connect(analyser);
+    on=true;dbHist=[];spikes=0;frames=0;peakDb=0;sesStart=Date.now();scoreStartTime=Date.now();
+    $('pill').classList.add('live');$('ptxt').textContent='monitoring';
+    $('mainBtn').textContent='■ stop';$('mainBtn').classList.add('stop');
+    $('hintTxt').textContent='analyzing room acoustics';$('waveIdle').style.opacity='0';
+    loop();
+  }catch(e){$('hintTxt').textContent='microphone permission denied'}
+}
+function stopMic(){
+  on=false;cancelAnimationFrame(raf);
+  stream&&stream.getTracks().forEach(t=>t.stop());actx&&actx.close();
+  $('pill').classList.remove('live');$('ptxt').textContent='idle';
+  $('mainBtn').innerHTML='&#9654; start monitoring';$('mainBtn').classList.remove('stop');
+  $('hintTxt').textContent='session ended';$('waveIdle').style.opacity='1';
+}
+function rms2db(d){
+  let s=0;for(let i=0;i<d.length;i++){const v=(d[i]-128)/128;s+=v*v;}
+  const r=Math.sqrt(s/d.length);return r<0.0001?0:Math.max(0,Math.round(20*Math.log10(r)+90));
+}
+function loop(){
+  if(!on)return;raf=requestAnimationFrame(loop);frames++;
+  const n=analyser.frequencyBinCount;
+  const td=new Uint8Array(n),fd=new Uint8Array(n);
+  analyser.getByteTimeDomainData(td);analyser.getByteFrequencyData(fd);
+  drawWave(td);drawFreq(fd);
+  const db=rms2db(td);
+  if(db>peakDb)peakDb=db;
+  dbHist.push(db);if(dbHist.length>360)dbHist.shift();
+  if(db>65&&dbHist.length>2&&dbHist[dbHist.length-2]<52)spikes++;
+  updateDB(db);updateMini(db,fd);
+  if(frames%15===0)updateMetrics(fd,db);
+}
+function updateDB(db){
+  const c=sigCol(Math.max(0,100-Math.max(0,db-25)*2.2));
+  $('dbNum').textContent=db;$('dbNum').style.color=c;
+  $('dbBar').style.width=Math.min(100,(db/85)*100)+'%';$('dbBar').style.background=c;
+}
+function updateMini(db,fd){
+  const avg=dbHist.length?Math.round(dbHist.reduce((a,b)=>a+b,0)/dbHist.length):0;
+  $('mAvg').textContent=avg+' dB';$('mAvg').style.color=sigCol(Math.max(0,100-Math.max(0,avg-25)*2.2));
+  $('mPeak').textContent=peakDb+' dB';$('mPeak').style.color=peakDb>65?'#f87171':peakDb>50?'#fbbf24':'#34d399';
+  const sr=actx.sampleRate,bHz=sr/analyser.fftSize;
+  let sub=0,bass=0,mid=0,treb=0;
+  for(let i=0;i<fd.length;i++){const hz=i*bHz,v=fd[i];if(hz<60)sub+=v;else if(hz<250)bass+=v;else if(hz<4000)mid+=v;else treb+=v;}
+  const bands=[['Sub-bass',sub,'#818cf8'],['Bass',bass,'#34d399'],['Midrange',mid,'#fbbf24'],['Treble',treb,'#f87171']];
+  const top=bands.reduce((a,b)=>b[1]>a[1]?b:a);
+  $('mDom').textContent=top[0];$('mDom').style.color=top[2];
+  const secs=Math.floor((Date.now()-sesStart)/1000);
+  $('mDur').textContent=Math.floor(secs/60)+':'+(secs%60+'').padStart(2,'0');$('mDur').style.color='#818cf8';
+}
+function updateMetrics(fd,db){
+  const sr=actx.sampleRate,bHz=sr/analyser.fftSize;
+  let treb=0,tot=0;
+  for(let i=0;i<fd.length;i++){tot+=fd[i];if(i*bHz>4000)treb+=fd[i];}
+  const avg=dbHist.length?Math.round(dbHist.reduce((a,b)=>a+b,0)/dbHist.length):0;
+  const va=dbHist.slice(-60).reduce((s,v)=>s+Math.pow(v-avg,2),0)/Math.max(1,Math.min(60,dbHist.length));
+  const stab=Math.max(0,Math.round(100-Math.sqrt(va)*3));
+  const hfR=tot>0?Math.round((treb/tot)*100):0;
+  const ns=Math.max(0,Math.round(100-Math.max(0,avg-25)*2.2));
+  const hs=Math.max(0,100-hfR*2.5),ss=Math.max(0,100-spikes*8);
+  const score=Math.round(ns*0.35+stab*0.3+hs*0.2+ss*0.15);
+  const now=Date.now();
+  if(Math.abs(score-currentScore)>5)scoreStartTime=now;
+  currentScore=score;const dur=now-scoreStartTime;
+  if(score>best.score){best={score,db:avg,spikes,ts:now,scoreStart:scoreStartTime,dur};renderPeaks();}
+  if(dbHist.length>10&&score<worst.score){worst={score,db:avg,spikes,ts:now,scoreStart:scoreStartTime,dur};renderPeaks();}
+  setMet('v1','b1',Math.round(ns)+'%',ns);setMet('v2','b2',stab+'%',stab);
+  setMet('v3','b3',hfR+'% energy',hs);setMet('v4','b4',spikes+' events',ss);
+  setScore(score);setRec(avg,stab,hfR,spikes,score);
+}
+function renderPeaks(){
+  if(best.score>=0){
+    $('bestScore').textContent=best.score;$('bestScore').style.color='#34d399';
+    $('bestMeta').innerHTML=
+      '<div class="pstat"><span class="pstat-lbl">at</span><span class="pstat-val" style="color:#818cf8">'+fmtTime(best.ts)+'</span></div>'+
+      '<div class="pstat"><span class="pstat-lbl">held</span><span class="pstat-val" style="color:#34d399">'+fmtDur(Math.max(best.dur,Date.now()-best.scoreStart))+'</span></div>'+
+      '<div class="pstat"><span class="pstat-lbl">avg dB</span><span class="pstat-val" style="color:#fbbf24">'+best.db+'</span></div>'+
+      '<div class="pstat"><span class="pstat-lbl">spikes</span><span class="pstat-val" style="color:#f87171">'+best.spikes+'</span></div>';
+  }
+  if(worst.score<=100){
+    $('worstScore').textContent=worst.score;$('worstScore').style.color='#f87171';
+    $('worstMeta').innerHTML=
+      '<div class="pstat"><span class="pstat-lbl">at</span><span class="pstat-val" style="color:#818cf8">'+fmtTime(worst.ts)+'</span></div>'+
+      '<div class="pstat"><span class="pstat-lbl">held</span><span class="pstat-val" style="color:#f87171">'+fmtDur(Math.max(worst.dur,Date.now()-worst.scoreStart))+'</span></div>'+
+      '<div class="pstat"><span class="pstat-lbl">avg dB</span><span class="pstat-val" style="color:#fbbf24">'+worst.db+'</span></div>'+
+      '<div class="pstat"><span class="pstat-lbl">spikes</span><span class="pstat-val" style="color:#f87171">'+worst.spikes+'</span></div>';
+  }
+}
+function setMet(vi,bi,label,pct){
+  const c=sigCol(pct);$(vi).textContent=label;$(vi).style.color=c;
+  $(bi).style.width=Math.min(100,Math.max(0,pct))+'%';$(bi).style.background=c;
+}
+function setScore(s){
+  const c=sigCol(s);
+  $('scoreNum').textContent=s;$('scoreNum').style.color=c;
+  $('sArc').style.stroke=c;$('sArc').style.strokeDashoffset=CIRC-(s/100)*CIRC;
+  $('verdict').textContent=s>=80?'excellent for sleep':s>=65?'great for sleep':s>=50?'acceptable':s>=35?'poor conditions':'not suitable';
+  $('verdict').style.color=c;
+}
+function setRec(db,stab,hf,sp,score){
+  let msg;
+  if(score>=80)msg='Room acoustics are excellent for sleep — low noise, stable levels, minimal high-frequency content.';
+  else if(db>60)msg='Noise level ('+db+' dB) is too high. Ideal sleep environments stay below 35 dB. Try earplugs or white noise.';
+  else if(stab<50)msg='Sound levels are fluctuating. Irregular noise disrupts sleep cycles — identify and reduce intermittent sources.';
+  else if(hf>30)msg='High-frequency content elevated (voices, fans, electronics). Especially disruptive to REM sleep.';
+  else if(sp>3)msg=sp+' sound spikes detected. Sharp sounds cause micro-arousals — consider acoustic sealing.';
+  else msg='Moderate environment. Small reductions to background noise could meaningfully improve sleep quality.';
+  $('recText').textContent=msg;
+}
+function drawWave(data){
+  const cv=$('waveCanvas'),c=cv.getContext('2d'),w=cv.width,h=cv.height;
+  c.clearRect(0,0,w,h);c.strokeStyle='rgba(129,140,248,0.65)';c.lineWidth=1.2;c.beginPath();
+  const step=w/data.length;
+  for(let i=0;i<data.length;i++){const y=((data[i]-128)/128)*(h*0.44)+(h/2);i===0?c.moveTo(0,y):c.lineTo(i*step,y);}
+  c.stroke();c.strokeStyle='rgba(129,140,248,0.08)';c.lineWidth=0.5;c.beginPath();c.moveTo(0,h/2);c.lineTo(w,h/2);c.stroke();
+}
+function drawFreq(data){
+  const cv=$('freqCanvas'),c=cv.getContext('2d'),w=cv.width,h=cv.height;
+  c.clearRect(0,0,w,h);
+  const bands=[{end:0.03,col:'#818cf8'},{end:0.12,col:'#34d399'},{end:0.55,col:'#fbbf24'},{end:1.0,col:'#f87171'}];
+  const bars=90,bw=(w/bars)-1.2;let bi=0;
+  for(let i=0;i<bars;i++){
+    const pct=i/bars;while(bi<bands.length-1&&pct>bands[bi].end)bi++;
+    const di=Math.floor((i/bars)*data.length*0.6);
+    const val=data[di]/255,bh=val*h*0.94,x=i*(bw+1.2);
+    c.fillStyle=bands[bi].col+'dd';c.fillRect(x,h-bh,bw,bh);
+    c.fillStyle=bands[bi].col+'22';c.fillRect(x,0,bw,h-bh);
+  }
+  [0.33,0.66].forEach(y=>{c.strokeStyle='rgba(255,255,255,0.04)';c.lineWidth=0.5;c.beginPath();c.moveTo(0,h*y);c.lineTo(w,h*y);c.stroke();});
+}
+</script>
+</body>
+</html>
